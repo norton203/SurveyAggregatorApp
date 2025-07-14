@@ -1,0 +1,142 @@
+﻿@* 7. Create Components/Pages/Earnings.razor *@
+@page "/earnings"
+@using SurveyAggregatorApp.Services
+@using SurveyAggregatorApp.Models
+@inject StateContainer StateContainer
+@rendermode InteractiveServer
+
+<PageTitle>Earnings Dashboard - Survey Hub</PageTitle>
+
+<div class="container mt-4">
+    @if (StateContainer.CurrentUser == null)
+    {
+        <div class="alert alert-warning">
+            Please <a href="/login">login</a> to view your earnings.
+        </div>
+    }
+    else
+    {
+        <h2>Earnings Dashboard</h2>
+
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-center bg-success text-white">
+                    <div class="card-body">
+                        <h4>Total Earnings</h4>
+                        <h2>£@StateContainer.CurrentUser.TotalEarnings.ToString("F2")</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center bg-info text-white">
+                    <div class="card-body">
+                        <h4>Surveys Completed</h4>
+                        <h2>@StateContainer.CurrentUser.CompletedSurveys.Count</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center bg-primary text-white">
+                    <div class="card-body">
+                        <h4>This Month</h4>
+                        <h2>£@thisMonthEarnings.ToString("F2")</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center bg-warning text-white">
+                    <div class="card-body">
+                        <h4>Avg per Survey</h4>
+                        <h2>£@averagePerSurvey.ToString("F2")</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Earnings by Platform</h5>
+                    </div>
+                    <div class="card-body">
+                        @foreach (var account in StateContainer.CurrentUser.ConnectedAccounts.Where(a => a.IsConnected))
+                        {
+                            var percentage = StateContainer.CurrentUser.TotalEarnings > 0
+                            ? (account.EarningsFromProvider / StateContainer.CurrentUser.TotalEarnings) * 100
+                            : 0;
+
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between">
+                                    <span>@account.ProviderName</span>
+                                    <span>£@account.EarningsFromProvider.ToString("F2")</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar" role="progressbar" style="width: @percentage.ToString("F1")%"></div>
+                                </div>
+                                <small class="text-muted">@percentage.ToString("F1")% of total earnings</small>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Recent Survey Completions</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (StateContainer.CurrentUser.CompletedSurveys.Any())
+                        {
+                            <div class="list-group list-group-flush">
+                                @foreach (var survey in StateContainer.CurrentUser.CompletedSurveys.OrderByDescending(s => s.CompletedDate).Take(5))
+                                {
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">@survey.Title</h6>
+                                            <small class="text-muted">@survey.CompletedDate.ToString("MMM dd, yyyy")</small>
+                                        </div>
+                                        <span class="badge bg-success rounded-pill">£@survey.Reward.ToString("F2")</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-muted">No surveys completed yet.</p>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private decimal thisMonthEarnings;
+    private decimal averagePerSurvey;
+
+    protected override void OnInitialized()
+    {
+        if (StateContainer.CurrentUser != null)
+        {
+            CalculateStats();
+        }
+    }
+
+    private void CalculateStats()
+    {
+        var user = StateContainer.CurrentUser!;
+        var now = DateTime.Now;
+        var startOfMonth = new DateTime(now.Year, now.Month, 1);
+
+        thisMonthEarnings = user.CompletedSurveys
+            .Where(s => s.CompletedDate >= startOfMonth)
+            .Sum(s => s.Reward);
+
+        averagePerSurvey = user.CompletedSurveys.Any()
+            ? user.CompletedSurveys.Average(s => s.Reward)
+            : 0;
+    }
+}

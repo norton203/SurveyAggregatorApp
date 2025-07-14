@@ -1,6 +1,7 @@
-﻿namespace SurveyAggregatorApp.Services
+﻿// 3. Fix Services/PollfishApiService.cs - REPLACE ENTIRE FILE
+using SurveyAggregatorApp.Models;
+
+namespace SurveyAggregatorApp.Services
 {
-    public class PollfishApiService
-    {
-    }
+    // This file can be empty now since PollfishApiService is in SurveyProviderService.cs
 }

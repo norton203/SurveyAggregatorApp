@@ -1,6 +1,13 @@
-﻿@inherits LayoutComponentBase
+﻿@* 6. Update Components/Layout/MainLayout.razor *@
+@inherits LayoutComponentBase
+@using SurveyAggregatorApp.Services
 
-@Body
+<div>
+    <NavMenu />
+    <main class="container-fluid">
+        @Body
+    </main>
+</div>
 
 <div id="blazor-error-ui">
     An unhandled error has occurred.

@@ -1,3 +1,4 @@
+/* 2. Update wwwroot/app.css */
 h1:focus {
     outline: none;
 }
@@ -26,4 +27,108 @@ h1:focus {
 
 .darker-border-checkbox.form-check-input {
     border-color: #929292;
+}
+
+/* Custom styles for Survey Hub */
+.jumbotron {
+    padding: 4rem 2rem;
+    margin-bottom: 2rem;
+    border-radius: 1rem;
+}
+
+.card {
+    border-radius: 0.75rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: box-shadow 0.15s ease-in-out;
+}
+
+    .card:hover {
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+
+.badge {
+    font-size: 0.75rem;
+}
+
+.progress {
+    height: 0.5rem;
+}
+
+.navbar-brand {
+    font-weight: bold;
+    font-size: 1.5rem;
+}
+
+.list-group-item {
+    border-left: none;
+    border-right: none;
+}
+
+    .list-group-item:first-child {
+        border-top: none;
+    }
+
+    .list-group-item:last-child {
+        border-bottom: none;
+    }
+
+/* Loading spinner customization */
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Alert customizations */
+.alert {
+    border-radius: 0.75rem;
+}
+
+/* Button customizations */
+.btn {
+    border-radius: 0.5rem;
+    font-weight: 500;
+}
+
+.btn-lg {
+    padding: 0.75rem 1.5rem;
+    font-size: 1.125rem;
+}
+
+/* Form customizations */
+.form-control {
+    border-radius: 0.5rem;
+}
+
+    .form-control:focus {
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+
+/* 3. Update appsettings.json */
+{
+    "Logging":
+
+{
+    "LogLevel":
+
+{
+    "Default": "Information", "Microsoft.AspNetCore": "Warning"
+}
+
+}
+
+,
+"AllowedHosts": "*",
+"SurveyProviders": {
+    "Pollfish":
+
+{
+    "ApiKey": "your_pollfish_api_key_here", "BaseUrl": "https://api.pollfish.com/v2/", "TestMode": true
+}
+
+,
+"Dynata": {
+    "ClientId": "your_dynata_client_id", "ClientSecret": "your_dynata_client_secret", "BaseUrl": "https://api.dynata.com/v1/"
+}
+
+}
 }

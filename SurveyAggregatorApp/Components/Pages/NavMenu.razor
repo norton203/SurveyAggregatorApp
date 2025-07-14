@@ -1,0 +1,72 @@
+﻿@* 5. Create Components/Layout/NavMenu.razor *@
+@using SurveyAggregatorApp.Services
+@inject StateContainer StateContainer
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+        <a class="navbar-brand" href="/">Survey Hub</a>
+
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="/">🏠 Home</a>
+                </li>
+
+                @if (StateContainer.CurrentUser != null)
+                {
+                    <li class="nav-item">
+                        <a class="nav-link" href="/surveys">📋 Available Surveys</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/providers">🔗 Connect Accounts</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/earnings">💰 Earnings</a>
+                    </li>
+                }
+                else
+                {
+                    <li class="nav-item">
+                        <a class="nav-link" href="/login">🔐 Login</a>
+                    </li>
+                }
+            </ul>
+
+            @if (StateContainer.CurrentUser != null)
+            {
+                <span class="navbar-text me-3">
+                    Welcome, @StateContainer.CurrentUser.Name | Balance: £@StateContainer.CurrentUser.TotalEarnings.ToString("F2")
+                </span>
+                <button class="btn btn-outline-light btn-sm" @onclick="Logout">Logout</button>
+            }
+            else
+            {
+                <a class="btn btn-light btn-sm" href="/login">Login</a>
+            }
+        </div>
+    </div>
+</nav>
+
+@code {
+    protected override void OnInitialized()
+    {
+        StateContainer.OnChange += StateHasChanged;
+    }
+
+    private void Logout()
+    {
+        StateContainer.ClearUser();
+        Navigation.NavigateTo("/");
+    }
+
+    public void Dispose()
+    {
+        StateContainer.OnChange -= StateHasChanged;
+    }
+}

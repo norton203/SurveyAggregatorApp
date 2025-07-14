@@ -1,14 +1,14 @@
-// Program.cs
-using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web;
-using SurveyAggregatorApp.Data;
+// 1. FIRST - Fix Program.cs
+using SurveyAggregatorApp.Components;
+using SurveyAggregatorApp.Models;
 using SurveyAggregatorApp.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddRazorPages();
-builder.Services.AddServerSideBlazor();
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
+
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<SurveyProviderService>();
 builder.Services.AddSingleton<UserService>();
@@ -23,17 +23,16 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error");
+    app.UseExceptionHandler("/Error", createScopeForErrors: true);
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
-app.UseRouting();
+app.UseAntiforgery();
 
-app.MapRazorPages();
-app.MapBlazorHub();
-app.MapFallbackToPage("/_Host");
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
 
 // Add API endpoints for webhooks
 app.MapPost("/api/pollfish/webhook", async (PollfishWebhookPayload payload, SurveyProviderService surveyService, UserService userService) =>

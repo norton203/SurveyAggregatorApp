@@ -1,8 +1,9 @@
-﻿// Services/UserService.cs
+﻿// 4. Fix Services/UserService.cs - ADD MISSING METHODS
+// Services/UserService.cs
+using SurveyAggregatorApp.Models;
+
 namespace SurveyAggregatorApp.Services
 {
-    using SurveyAggregatorApp.Models;
-
     public class UserService
     {
         private readonly List<User> _users = new();
@@ -170,12 +171,46 @@ namespace SurveyAggregatorApp.Services
             }
         }
 
+        // ADD THESE MISSING METHODS:
+        public async Task UpdateUserBalanceAsync(int userId, decimal amount)
+        {
+            await Task.Delay(50);
+            var user = _users.FirstOrDefault(u => u.Id == userId);
+            if (user != null)
+            {
+                user.TotalEarnings += amount;
+            }
+        }
+
+        public async Task MarkSurveyCompletedAsync(int userId, int surveyId)
+        {
+            await Task.Delay(50);
+            var user = _users.FirstOrDefault(u => u.Id == userId);
+            if (user != null)
+            {
+                // Add the survey to completed surveys if not already there
+                var existingSurvey = user.CompletedSurveys.FirstOrDefault(s => s.SurveyId == $"pollfish_{surveyId}");
+                if (existingSurvey == null)
+                {
+                    user.CompletedSurveys.Add(new CompletedSurvey
+                    {
+                        SurveyId = $"pollfish_{surveyId}",
+                        ProviderId = "pollfish",
+                        Title = "Survey Completed",
+                        Reward = 0, // Will be updated by webhook
+                        CompletedDate = DateTime.Now,
+                        Status = "Completed"
+                    });
+                }
+            }
+        }
+
         private string GetProviderName(string providerId) => providerId switch
         {
-            "qmee" => "Qmee",
-            "swagbucks" => "Swagbucks",
-            "toluna" => "Toluna",
-            "yougovdirect" => "YouGov Direct",
+            "pollfish" => "Pollfish",
+            "dynata" => "Dynata",
+            "lucid" => "Lucid (Cint)",
+            "surveymonkey" => "SurveyMonkey Audience",
             _ => providerId
         };
 

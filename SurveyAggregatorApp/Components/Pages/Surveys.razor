@@ -1,0 +1,182 @@
+﻿@* 3. Create Components/Pages/Surveys.razor *@
+@page "/surveys"
+@using SurveyAggregatorApp.Services
+@using SurveyAggregatorApp.Models
+@inject SurveyProviderService ProviderService
+@inject UserService UserService
+@inject StateContainer StateContainer
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<PageTitle>Available Surveys - Survey Hub</PageTitle>
+
+<div class="container mt-4">
+    @if (StateContainer.CurrentUser == null)
+    {
+        <div class="alert alert-warning">
+            Please <a href="/login">login</a> to view available surveys.
+        </div>
+    }
+    else
+    {
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Available Surveys</h2>
+            <button class="btn btn-outline-primary" @onclick="RefreshSurveys">
+                🔄 Refresh
+            </button>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Loading surveys from connected platforms...</p>
+            </div>
+        }
+        else if (!surveys.Any())
+        {
+            <div class="alert alert-info">
+                <h4>No surveys available</h4>
+                <p>You don't have any available surveys right now. This could be because:</p>
+                <ul>
+                    <li>You haven't connected any survey provider accounts yet</li>
+                    <li>All available surveys have been completed</li>
+                    <li>No new surveys match your profile</li>
+                </ul>
+                <a href="/providers" class="btn btn-primary">Connect Survey Accounts</a>
+            </div>
+        }
+        else
+        {
+            <div class="row">
+                @foreach (var survey in surveys.OrderByDescending(s => s.Reward))
+                {
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="badge bg-secondary">@survey.ProviderName</span>
+                                    <span class="badge bg-success">£@survey.Reward.ToString("F2")</span>
+                                </div>
+                                <h5 class="card-title">@survey.Title</h5>
+                                <p class="card-text">@survey.Description</p>
+                                <div class="mb-2">
+                                    <small class="text-muted">
+                                        🕒 ~@survey.EstimatedMinutes min
+                                        @if (!string.IsNullOrEmpty(survey.Category))
+                                        {
+                                            <span class="ms-2">
+                                                🏷️ @survey.Category
+                                            </span>
+                                        }
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <button class="btn btn-primary w-100" @onclick="() => StartSurvey(survey)">
+                                    Start Survey
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="mt-4">
+                <small class="text-muted">
+                    Showing @surveys.Count survey(s) from @surveys.GroupBy(s => s.ProviderId).Count() connected platform(s).
+                    Surveys refresh automatically every few minutes.
+                </small>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private List<ExternalSurvey> surveys = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (StateContainer.CurrentUser != null)
+        {
+            await LoadSurveys();
+        }
+    }
+
+    private async Task LoadSurveys()
+    {
+        isLoading = true;
+        try
+        {
+            surveys = await ProviderService.GetAvailableSurveysAsync(StateContainer.CurrentUser!);
+        }
+        catch (Exception ex)
+        {
+            surveys = new List<ExternalSurvey>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task RefreshSurveys()
+    {
+        await LoadSurveys();
+    }
+
+    private async Task StartSurvey(ExternalSurvey survey)
+    {
+        if (survey.ProviderId == "pollfish")
+        {
+            var pollfishService = new PollfishApiService(new HttpClient());
+            var userAccount = StateContainer.CurrentUser!.ConnectedAccounts
+                .FirstOrDefault(a => a.ProviderId == "pollfish");
+
+            if (userAccount != null)
+            {
+                var surveyLink = await pollfishService.GetSurveyLinkAsync(
+                    survey.Id.Replace("pollfish_", ""),
+                    StateContainer.CurrentUser!,
+                    userAccount.UserToken);
+
+                if (!string.IsNullOrEmpty(surveyLink))
+                {
+                    await JSRuntime.InvokeVoidAsync("open", surveyLink, "_blank");
+                    Console.WriteLine($"User started survey: {survey.Id}");
+                }
+                else
+                {
+                    Console.WriteLine("Could not get survey link from Pollfish");
+                }
+            }
+        }
+        else
+        {
+            await JSRuntime.InvokeVoidAsync("open", survey.SurveyUrl, "_blank");
+            await SimulateSurveyCompletion(survey);
+        }
+    }
+    private async Task SimulateSurveyCompletion(ExternalSurvey survey)
+    {
+        if (survey.ProviderId != "pollfish")
+        {
+            await Task.Delay(2000);
+
+            await UserService.RecordSurveyCompletionAsync(StateContainer.CurrentUser!.Id, survey);
+
+            var updatedUser = UserService.GetUser(StateContainer.CurrentUser.Id);
+            if (updatedUser != null)
+            {
+                StateContainer.SetUser(updatedUser);
+            }
+
+            await LoadSurveys();
+            StateHasChanged();
+        }
+    }
+}

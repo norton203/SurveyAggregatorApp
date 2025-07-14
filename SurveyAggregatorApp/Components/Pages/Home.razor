@@ -1,7 +1,82 @@
-﻿@page "/"
+﻿@* 1. Replace Components/Pages/Home.razor with this: *@
+@page "/"
+@using SurveyAggregatorApp.Services
+@inject StateContainer StateContainer
+@rendermode InteractiveServer
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Survey Hub - Earn Money from Multiple Platforms</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="container mt-4">
+    <div class="jumbotron bg-primary text-white p-5 rounded">
+        <h1 class="display-4">Welcome to Survey Hub!</h1>
+        <p class="lead">Connect all your survey accounts in one place. Earn money from Pollfish, Dynata, and more!</p>
 
-Welcome to your new app.
+        @if (StateContainer.CurrentUser == null)
+        {
+            <hr class="my-4">
+            <div class="row">
+                <div class="col-md-8">
+                    <h3>Why Choose Survey Hub?</h3>
+                    <ul class="list-unstyled">
+                        <li>✅ Connect multiple survey platforms</li>
+                        <li>✅ See all available surveys in one dashboard</li>
+                        <li>✅ Track earnings across all platforms</li>
+                        <li>✅ Never miss high-paying opportunities</li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <h5 class="card-title text-dark">Supported Platforms</h5>
+                            <div class="mb-2">
+                                <span class="badge bg-primary">Pollfish</span>
+                                <span class="badge bg-success">Dynata</span>
+                            </div>
+                            <div class="mb-2">
+                                <span class="badge bg-info">Lucid</span>
+                                <span class="badge bg-warning">SurveyMonkey</span>
+                            </div>
+                            <small class="text-muted">Real survey provider APIs!</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <hr class="my-4">
+            <a class="btn btn-light btn-lg" href="/login" role="button">Get Started Today</a>
+        }
+        else
+        {
+            <hr class="my-4">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title text-dark">Total Earnings</h5>
+                            <h2 class="text-success">£@StateContainer.CurrentUser.TotalEarnings.ToString("F2")</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title text-dark">Connected Accounts</h5>
+                            <h2 class="text-info">@StateContainer.CurrentUser.ConnectedAccounts.Count(a => a.IsConnected)</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title text-dark">Surveys Completed</h5>
+                            <h2 class="text-primary">@StateContainer.CurrentUser.CompletedSurveys.Count</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4">
+                <a class="btn btn-light btn-lg me-3" href="/surveys" role="button">View Available Surveys</a>
+                <a class="btn btn-outline-light btn-lg" href="/providers" role="button">Connect More Accounts</a>
+            </div>
+        }
+    </div>
+</div>
