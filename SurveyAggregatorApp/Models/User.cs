@@ -1,16 +1,33 @@
 ﻿// Models/User.cs
+using System.ComponentModel.DataAnnotations;
+
 namespace SurveyAggregatorApp.Models
 {
+    // Updated User model for production
     public class User
     {
         public int Id { get; set; }
+
+        [Required]
+        [EmailAddress]
         public string Email { get; set; } = string.Empty;
-        public string Name { get; set; } = string.Empty;
+
+        [Required]
+        public string PasswordHash { get; set; } = string.Empty;
+
         public decimal TotalEarnings { get; set; } = 0;
-        public DateTime JoinedDate { get; set; } = DateTime.Now;
-        public List<ProviderAccount> ConnectedAccounts { get; set; } = new();
-        public List<CompletedSurvey> CompletedSurveys { get; set; } = new();
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? LastLoginAt { get; set; }
+        public bool IsEmailVerified { get; set; } = false;
+        public bool IsActive { get; set; } = true;
+
+        // Navigation properties
+        public UserProfile? Profile { get; set; }
+        public ICollection<ProviderAccount> ConnectedAccounts { get; set; } = new List<ProviderAccount>();
+        public ICollection<CompletedSurvey> CompletedSurveys { get; set; } = new List<CompletedSurvey>();
+        public ICollection<UserTransaction> Transactions { get; set; } = new List<UserTransaction>();
     }
+
 
     public class ProviderAccount
     {

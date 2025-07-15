@@ -1,0 +1,325 @@
+﻿
+
+@* Components/Pages/Admin/Dashboard.razor - Admin dashboard *@
+@page "/admin"
+@page "/admin/dashboard"
+@using SurveyAggregatorApp.Services
+@using SurveyAggregatorApp.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+@inject AuthenticationService AuthService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+@attribute [Authorize]
+
+<PageTitle>Admin Dashboard - Survey Hub</PageTitle>
+
+<div class="container-fluid mt-4">
+    @if (!isAdmin)
+    {
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Access denied. Administrator privileges required.
+        </div>
+    }
+    else
+    {
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="mb-1">Admin Dashboard</h2>
+                <p class="text-muted">System overview and management</p>
+            </div>
+            <button class="btn btn-outline-primary" @onclick="RefreshData" disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                }
+                <i class="fas fa-sync-alt me-1"></i>Refresh
+            </button>
+        </div>
+
+        <!-- Key Metrics -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body text-center">
+                        <div class="text-primary mb-2">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
+                        <h3 class="text-primary fw-bold">@totalUsers</h3>
+                        <p class="text-muted mb-1">Total Users</p>
+                        <small class="text-success">+@newUsersToday today</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body text-center">
+                        <div class="text-success mb-2">
+                            <i class="fas fa-clipboard-check fa-2x"></i>
+                        </div>
+                        <h3 class="text-success fw-bold">@totalSurveys</h3>
+                        <p class="text-muted mb-1">Surveys Completed</p>
+                        <small class="text-success">+@surveysToday today</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body text-center">
+                        <div class="text-warning mb-2">
+                            <i class="fas fa-pound-sign fa-2x"></i>
+                        </div>
+                        <h3 class="text-warning fw-bold">£@totalEarnings.ToString("F0")</h3>
+                        <p class="text-muted mb-1">Total Earnings</p>
+                        <small class="text-success">£@earningsToday.ToString("F0") today</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body text-center">
+                        <div class="text-info mb-2">
+                            <i class="fas fa-link fa-2x"></i>
+                        </div>
+                        <h3 class="text-info fw-bold">@activeConnections</h3>
+                        <p class="text-muted mb-1">Active Connections</p>
+                        <small class="text-muted">@totalProviders providers</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Recent Users -->
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-user-plus me-2"></i>Recent Users
+                        </h5>
+                        <a href="/admin/users" class="btn btn-sm btn-outline-primary">View All</a>
+                    </div>
+                    <div class="card-body">
+                        @if (recentUsers.Any())
+                        {
+                            <div class="list-group list-group-flush">
+                                @foreach (var user in recentUsers.Take(5))
+                                {
+                                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-3">
+                                                <i class="fas fa-user-circle fa-lg text-primary"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-1">@(user.Profile?.FullName ?? "Unknown")</h6>
+                                                <small class="text-muted">@user.Email</small>
+                                            </div>
+                                        </div>
+                                        <div class="text-end">
+                                            <small class="text-muted d-block">@user.CreatedAt.ToString("MMM dd")</small>
+                                            <span class="badge @(user.IsActive ? "bg-success" : "bg-secondary")">
+                                                @(user.IsActive ? "Active" : "Inactive")
+                                            </span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center py-3">No recent users</p>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Earners -->
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-trophy me-2"></i>Top Earners
+                        </h5>
+                        <small class="text-muted">This month</small>
+                    </div>
+                    <div class="card-body">
+                        @if (topEarners.Any())
+                        {
+                            <div class="list-group list-group-flush">
+                                @for (int i = 0; i < Math.Min(5, topEarners.Count); i++)
+                                {
+                                    var user = topEarners[i];
+                                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-3">
+                                                <span class="badge @GetRankBadgeClass(i + 1)">@(i + 1)</span>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-1">@(user.Profile?.FullName ?? "Unknown")</h6>
+                                                <small class="text-muted">@user.CompletedSurveys.Count surveys</small>
+                                            </div>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="fw-bold text-success">£@user.TotalEarnings.ToString("F2")</span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center py-3">No earnings data</p>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Provider Statistics -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>Provider Performance
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            @foreach (var provider in providerStats)
+                            {
+                                <div class="col-md-3 mb-3">
+                                    <div class="text-center p-3 border rounded">
+                                        <h5 class="mb-1">@provider.Name</h5>
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <strong class="text-primary">@provider.ConnectedUsers</strong>
+                                                <small class="d-block text-muted">Users</small>
+                                            </div>
+                                            <div class="col-6">
+                                                <strong class="text-success">£@provider.TotalEarnings.ToString("F0")</strong>
+                                                <small class="d-block text-muted">Earnings</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool isAdmin = false;
+    private bool isLoading = false;
+    private int totalUsers = 0;
+    private int newUsersToday = 0;
+    private int totalSurveys = 0;
+    private int surveysToday = 0;
+    private decimal totalEarnings = 0;
+    private decimal earningsToday = 0;
+    private int activeConnections = 0;
+    private int totalProviders = 0;
+    private List<User> recentUsers = new();
+    private List<User> topEarners = new();
+    private List<ProviderStat> providerStats = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var currentUser = await AuthService.GetCurrentUserAsync();
+        if (currentUser == null)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        // Simple admin check - in production, use proper role-based authentication
+        isAdmin = currentUser.Email.EndsWith("@admin.com") || currentUser.Id == 1;
+
+        if (isAdmin)
+        {
+            await LoadDashboardData();
+        }
+    }
+
+    private async Task LoadDashboardData()
+    {
+        isLoading = true;
+        try
+        {
+            var today = DateTime.Today;
+
+            // Load basic statistics
+            totalUsers = await DbContext.Users.CountAsync();
+            newUsersToday = await DbContext.Users.CountAsync(u => u.CreatedAt.Date == today);
+
+            totalSurveys = await DbContext.CompletedSurveys.CountAsync();
+            surveysToday = await DbContext.CompletedSurveys.CountAsync(s => s.CompletedAt.Date == today);
+
+            totalEarnings = await DbContext.Users.SumAsync(u => u.TotalEarnings);
+            earningsToday = await DbContext.CompletedSurveys
+                .Where(s => s.CompletedAt.Date == today)
+                .SumAsync(s => s.Reward);
+
+            activeConnections = await DbContext.ProviderAccounts.CountAsync(pa => pa.IsConnected);
+            totalProviders = await DbContext.SurveyProviders.CountAsync(p => p.IsActive);
+
+            // Load recent users
+            recentUsers = await DbContext.Users
+                .Include(u => u.Profile)
+                .OrderByDescending(u => u.CreatedAt)
+                .Take(10)
+                .ToListAsync();
+
+            // Load top earners
+            topEarners = await DbContext.Users
+                .Include(u => u.Profile)
+                .Include(u => u.CompletedSurveys)
+                .OrderByDescending(u => u.TotalEarnings)
+                .Take(10)
+                .ToListAsync();
+
+            // Load provider statistics
+            providerStats = await DbContext.SurveyProviders
+                .Select(p => new ProviderStat
+                    {
+                        Name = p.Name,
+                        ConnectedUsers = p.Id == "pollfish" ? DbContext.ProviderAccounts.Count(pa => pa.ProviderId == p.Id && pa.IsConnected) : 0,
+                        TotalEarnings = p.Id == "pollfish" ? DbContext.ProviderAccounts.Where(pa => pa.ProviderId == p.Id).Sum(pa => pa.EarningsFromProvider) : 0
+                    })
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading dashboard data: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadDashboardData();
+    }
+
+    private string GetRankBadgeClass(int rank) => rank switch
+    {
+        1 => "bg-warning text-dark",
+        2 => "bg-secondary text-white",
+        3 => "bg-warning text-dark",
+        _ => "bg-primary text-white"
+    };
+
+    public class ProviderStat
+    {
+        public string Name { get; set; } = string.Empty;
+        public int ConnectedUsers { get; set; }
+        public decimal TotalEarnings { get; set; }
+    }
+}

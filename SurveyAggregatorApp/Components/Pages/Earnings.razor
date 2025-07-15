@@ -1,110 +1,239 @@
-﻿@* 7. Create Components/Pages/Earnings.razor *@
+﻿@* Components/Pages/Earnings.razor - Updated for database *@
 @page "/earnings"
 @using SurveyAggregatorApp.Services
 @using SurveyAggregatorApp.Models
-@inject StateContainer StateContainer
+@inject AuthenticationService AuthService
+@inject UserService UserService
 @rendermode InteractiveServer
+@attribute [Authorize]
 
 <PageTitle>Earnings Dashboard - Survey Hub</PageTitle>
 
 <div class="container mt-4">
-    @if (StateContainer.CurrentUser == null)
+    @if (currentUser == null)
     {
         <div class="alert alert-warning">
-            Please <a href="/login">login</a> to view your earnings.
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Please <a href="/login">sign in</a> to view your earnings.
         </div>
     }
     else
     {
-        <h2>Earnings Dashboard</h2>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="mb-1">Earnings Dashboard</h2>
+                <p class="text-muted">Track your survey earnings and transaction history</p>
+            </div>
+            <button class="btn btn-outline-primary" @onclick="RefreshData" disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                }
+                <i class="fas fa-sync-alt me-1"></i>Refresh
+            </button>
+        </div>
 
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card text-center bg-success text-white">
+        <!-- Earnings Summary Cards -->
+        <div class="row mb-5">
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="card text-center h-100 border-0 shadow-sm">
                     <div class="card-body">
-                        <h4>Total Earnings</h4>
-                        <h2>£@StateContainer.CurrentUser.TotalEarnings.ToString("F2")</h2>
+                        <div class="text-success mb-2">
+                            <i class="fas fa-pound-sign fa-2x"></i>
+                        </div>
+                        <h3 class="text-success fw-bold">£@currentUser.TotalEarnings.ToString("F2")</h3>
+                        <p class="text-muted mb-0">Total Earnings</p>
+                        <small class="text-success">
+                            @if (monthlyGrowth >= 0)
+                            {
+                                <i class="fas fa-arrow-up"></i>
+                                +@monthlyGrowth.ToString("F0")%
+                                    }
+                            else
+                            {
+                                <i class="fas fa-arrow-down"></i> @monthlyGrowth.ToString("F0")
+%
+                                    }
+                            this month
+                        </small>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card text-center bg-info text-white">
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="card text-center h-100 border-0 shadow-sm">
                     <div class="card-body">
-                        <h4>Surveys Completed</h4>
-                        <h2>@StateContainer.CurrentUser.CompletedSurveys.Count</h2>
+                        <div class="text-primary mb-2">
+                            <i class="fas fa-calendar-month fa-2x"></i>
+                        </div>
+                        <h3 class="text-primary fw-bold">£@thisMonthEarnings.ToString("F2")</h3>
+                        <p class="text-muted mb-0">This Month</p>
+                        <small class="text-muted">@surveysThisMonth surveys completed</small>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card text-center bg-primary text-white">
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="card text-center h-100 border-0 shadow-sm">
                     <div class="card-body">
-                        <h4>This Month</h4>
-                        <h2>£@thisMonthEarnings.ToString("F2")</h2>
+                        <div class="text-info mb-2">
+                            <i class="fas fa-clipboard-check fa-2x"></i>
+                        </div>
+                        <h3 class="text-info fw-bold">@currentUser.CompletedSurveys.Count</h3>
+                        <p class="text-muted mb-0">Total Surveys</p>
+                        <small class="text-muted">Since @currentUser.CreatedAt.ToString("MMM yyyy")</small>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card text-center bg-warning text-white">
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="card text-center h-100 border-0 shadow-sm">
                     <div class="card-body">
-                        <h4>Avg per Survey</h4>
-                        <h2>£@averagePerSurvey.ToString("F2")</h2>
+                        <div class="text-warning mb-2">
+                            <i class="fas fa-chart-line fa-2x"></i>
+                        </div>
+                        <h3 class="text-warning fw-bold">£@averagePerSurvey.ToString("F2")</h3>
+                        <p class="text-muted mb-0">Average per Survey</p>
+                        <small class="text-muted">Based on completed surveys</small>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="row">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Earnings by Platform</h5>
+            <!-- Earnings by Platform -->
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-pie me-2"></i>Earnings by Platform
+                        </h5>
+                        <small class="text-muted">All time</small>
                     </div>
                     <div class="card-body">
-                        @foreach (var account in StateContainer.CurrentUser.ConnectedAccounts.Where(a => a.IsConnected))
+                        @if (earningsByProvider.Any())
                         {
-                            var percentage = StateContainer.CurrentUser.TotalEarnings > 0
-                            ? (account.EarningsFromProvider / StateContainer.CurrentUser.TotalEarnings) * 100
-                            : 0;
+                            @foreach (var platformEarning in earningsByProvider.OrderByDescending(kv => kv.Value))
+                            {
+                                var percentage = currentUser.TotalEarnings > 0
+                                ? (platformEarning.Value / currentUser.TotalEarnings) * 100
+                                : 0;
 
-                            <div class="mb-3">
-                                <div class="d-flex justify-content-between">
-                                    <span>@account.ProviderName</span>
-                                    <span>£@account.EarningsFromProvider.ToString("F2")</span>
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="fw-medium">@platformEarning.Key</span>
+                                        <span class="text-success fw-bold">£@platformEarning.Value.ToString("F2")</span>
+                                    </div>
+                                    <div class="progress" style="height: 8px;">
+                                        <div class="progress-bar bg-success" role="progressbar" style="width: @percentage.ToString("F1")%"></div>
+                                    </div>
+                                    <small class="text-muted">@percentage.ToString("F1")% of total earnings</small>
                                 </div>
-                                <div class="progress">
-                                    <div class="progress-bar" role="progressbar" style="width: @percentage.ToString("F1")%"></div>
-                                </div>
-                                <small class="text-muted">@percentage.ToString("F1")% of total earnings</small>
+                            }
+                        }
+                        else
+                        {
+                            <div class="text-center py-4">
+                                <i class="fas fa-chart-pie fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">No earnings data available yet.</p>
+                                <a href="/surveys" class="btn btn-primary">Start Taking Surveys</a>
                             </div>
                         }
                     </div>
                 </div>
             </div>
 
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Recent Survey Completions</h5>
+            <!-- Recent Transactions -->
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-history me-2"></i>Recent Activity
+                        </h5>
+                        <a href="/transactions" class="btn btn-sm btn-outline-primary">View All</a>
                     </div>
                     <div class="card-body">
-                        @if (StateContainer.CurrentUser.CompletedSurveys.Any())
+                        @if (recentTransactions.Any())
                         {
                             <div class="list-group list-group-flush">
-                                @foreach (var survey in StateContainer.CurrentUser.CompletedSurveys.OrderByDescending(s => s.CompletedDate).Take(5))
+                                @foreach (var transaction in recentTransactions.Take(5))
                                 {
-                                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="mb-1">@survey.Title</h6>
-                                            <small class="text-muted">@survey.CompletedDate.ToString("MMM dd, yyyy")</small>
+                                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-3">
+                                                @if (transaction.Type == "Earning")
+                                                {
+                                                    <i class="fas fa-plus-circle text-success"></i>
+                                                }
+                                                else if (transaction.Type == "Withdrawal")
+                                                {
+                                                    <i class="fas fa-minus-circle text-danger"></i>
+                                                }
+                                                else
+                                                {
+                                                    <i class="fas fa-exchange-alt text-info"></i>
+                                                }
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-1">@transaction.Description</h6>
+                                                <small class="text-muted">@transaction.CreatedAt.ToString("MMM dd, yyyy HH:mm")</small>
+                                            </div>
                                         </div>
-                                        <span class="badge bg-success rounded-pill">£@survey.Reward.ToString("F2")</span>
+                                        <div class="text-end">
+                                            <span class="fw-bold @(transaction.Amount >= 0 ? "text-success" : "text-danger")">
+                                                @(transaction.Amount >= 0 ? "+" : "")£@transaction.Amount.ToString("F2")
+                                            </span>
+                                            <br>
+                                            <span class="badge @GetStatusBadgeClass(transaction.Status)">
+                                                @transaction.Status
+                                            </span>
+                                        </div>
                                     </div>
                                 }
                             </div>
                         }
                         else
                         {
-                            <p class="text-muted">No surveys completed yet.</p>
+                            <div class="text-center py-4">
+                                <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">No transaction history yet.</p>
+                                <a href="/surveys" class="btn btn-primary">Complete Your First Survey</a>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monthly Earnings Chart -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-line me-2"></i>Monthly Earnings Trend
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            @foreach (var monthData in monthlyEarnings.OrderBy(kv => kv.Key))
+                            {
+                                var monthName = monthData.Key.ToString("MMM yyyy");
+                                var maxEarnings = monthlyEarnings.Values.DefaultIfEmpty(1).Max();
+                                var heightPercentage = maxEarnings > 0 ? (monthData.Value / maxEarnings) * 100 : 0;
+
+                                <div class="col text-center">
+                                    <div class="mb-2">
+                                        <div class="bg-primary rounded" style="height: @(Math.Max(heightPercentage, 5))px; min-height: 20px; width: 30px; margin: 0 auto;"></div>
+                                    </div>
+                                    <small class="text-muted d-block">@monthName</small>
+                                    <small class="fw-bold">£@monthData.Value.ToString("F0")</small>
+                                </div>
+                            }
+                        </div>
+                        @if (!monthlyEarnings.Any())
+                        {
+                            <div class="text-center py-4">
+                                <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">Start completing surveys to see your earnings trend.</p>
+                            </div>
                         }
                     </div>
                 </div>
@@ -114,29 +243,104 @@
 </div>
 
 @code {
-    private decimal thisMonthEarnings;
-    private decimal averagePerSurvey;
+    private User? currentUser;
+    private bool isLoading = false;
+    private decimal thisMonthEarnings = 0;
+    private int surveysThisMonth = 0;
+    private decimal averagePerSurvey = 0;
+    private decimal monthlyGrowth = 0;
+    private Dictionary<string, decimal> earningsByProvider = new();
+    private List<UserTransaction> recentTransactions = new();
+    private Dictionary<DateTime, decimal> monthlyEarnings = new();
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        if (StateContainer.CurrentUser != null)
+        currentUser = await AuthService.GetCurrentUserAsync();
+        if (currentUser == null)
         {
-            CalculateStats();
+            return;
+        }
+
+        await LoadEarningsData();
+    }
+
+    private async Task LoadEarningsData()
+    {
+        isLoading = true;
+        try
+        {
+            // Calculate this month's earnings
+            var now = DateTime.Now;
+            var startOfMonth = new DateTime(now.Year, now.Month, 1);
+            var lastMonth = startOfMonth.AddMonths(-1);
+
+            thisMonthEarnings = await UserService.GetMonthlyEarningsAsync(currentUser!.Id, now);
+            var lastMonthEarnings = await UserService.GetMonthlyEarningsAsync(currentUser.Id, lastMonth);
+
+            surveysThisMonth = currentUser.CompletedSurveys
+                .Count(s => s.CompletedAt >= startOfMonth && s.Status == "Completed");
+
+            // Calculate monthly growth
+            if (lastMonthEarnings > 0)
+            {
+                monthlyGrowth = ((thisMonthEarnings - lastMonthEarnings) / lastMonthEarnings) * 100;
+            }
+            else if (thisMonthEarnings > 0)
+            {
+                monthlyGrowth = 100; // First month with earnings
+            }
+
+            // Calculate average per survey
+            var completedSurveys = currentUser.CompletedSurveys.Where(s => s.Status == "Completed").ToList();
+            averagePerSurvey = completedSurveys.Any() ? completedSurveys.Average(s => s.Reward) : 0;
+
+            // Get earnings by provider
+            earningsByProvider = await UserService.GetEarningsByProviderAsync(currentUser.Id);
+
+            // Get recent transactions
+            recentTransactions = await UserService.GetUserTransactionsAsync(currentUser.Id, 10);
+
+            // Calculate monthly earnings for chart
+            monthlyEarnings = currentUser.CompletedSurveys
+                .Where(s => s.Status == "Completed")
+                .GroupBy(s => new DateTime(s.CompletedAt.Year, s.CompletedAt.Month, 1))
+                .ToDictionary(g => g.Key, g => g.Sum(s => s.Reward));
+
+            // Ensure we have at least the last 6 months
+            for (int i = 5; i >= 0; i--)
+            {
+                var month = startOfMonth.AddMonths(-i);
+                if (!monthlyEarnings.ContainsKey(month))
+                {
+                    monthlyEarnings[month] = 0;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading earnings data: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
         }
     }
 
-    private void CalculateStats()
+    private async Task RefreshData()
     {
-        var user = StateContainer.CurrentUser!;
-        var now = DateTime.Now;
-        var startOfMonth = new DateTime(now.Year, now.Month, 1);
-
-        thisMonthEarnings = user.CompletedSurveys
-            .Where(s => s.CompletedDate >= startOfMonth)
-            .Sum(s => s.Reward);
-
-        averagePerSurvey = user.CompletedSurveys.Any()
-            ? user.CompletedSurveys.Average(s => s.Reward)
-            : 0;
+        currentUser = await AuthService.GetCurrentUserAsync();
+        if (currentUser != null)
+        {
+            await LoadEarningsData();
+        }
     }
+
+    private string GetStatusBadgeClass(string status) => status switch
+    {
+        "Completed" => "bg-success",
+        "Pending" => "bg-warning",
+        "Failed" => "bg-danger",
+        "Cancelled" => "bg-secondary",
+        _ => "bg-secondary"
+    };
 }

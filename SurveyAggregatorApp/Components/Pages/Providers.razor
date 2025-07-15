@@ -1,115 +1,267 @@
-﻿@* 4. Create Components/Pages/Providers.razor *@
+﻿@* Components/Pages/Providers.razor - Updated for database *@
 @page "/providers"
 @using SurveyAggregatorApp.Services
 @using SurveyAggregatorApp.Models
+@using Microsoft.EntityFrameworkCore
 @inject SurveyProviderService ProviderService
 @inject UserService UserService
-@inject StateContainer StateContainer
+@inject AuthenticationService AuthService
+@inject ApplicationDbContext DbContext
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 @rendermode InteractiveServer
+@attribute [Authorize]
 
 <PageTitle>Connect Survey Accounts - Survey Hub</PageTitle>
 
 <div class="container mt-4">
-    @if (StateContainer.CurrentUser == null)
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="mb-1">Survey Provider Accounts</h2>
+                    <p class="text-muted">Connect your existing survey platform accounts to access all surveys in one place</p>
+                </div>
+                <button class="btn btn-outline-primary" @onclick="RefreshProviders" disabled="@isLoading">
+                    @if (isLoading)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                    }
+                    <i class="fas fa-sync-alt me-1"></i>Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @if (currentUser == null)
     {
         <div class="alert alert-warning">
-            Please <a href="/login">login</a> to connect survey provider accounts.
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Please <a href="/login">sign in</a> to connect survey provider accounts.
+        </div>
+    }
+    else if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 text-muted">Loading provider information...</p>
         </div>
     }
     else
     {
-        <h2>Survey Provider Accounts</h2>
-        <p class="lead">Connect your existing survey platform accounts to see all available surveys in one place.</p>
-
-        @if (isLoading)
+        <!-- Connected Accounts Summary -->
+        @if (currentUser.ConnectedAccounts.Any(a => a.IsConnected))
         {
-            <div class="text-center">
-                <div class="spinner-border" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-            </div>
-        }
-        else
-        {
-            <div class="row">
-                @foreach (var provider in providers)
-                {
-                    var userAccount = StateContainer.CurrentUser.ConnectedAccounts.FirstOrDefault(a => a.ProviderId == provider.Id);
-                    var isConnected = userAccount?.IsConnected ?? false;
-
-                    <div class="col-md-6 col-lg-4 mb-4">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-start mb-3">
-                                    <h5 class="card-title">@provider.Name</h5>
-                                    @if (isConnected)
-                                    {
-                                        <span class="badge bg-success">Connected</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-secondary">Not Connected</span>
-                                    }
-                                </div>
-
-                                <p class="card-text">@provider.Description</p>
-
-                                <div class="mb-3">
-                                    <small class="text-muted">
-                                        <strong>Min Payout:</strong> £@provider.MinPayout.ToString("F2")<br>
-                                        <strong>Payment Methods:</strong> @string.Join(", ", provider.PaymentMethods)
-                                    </small>
-                                </div>
-
-                                @if (isConnected && userAccount != null)
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="fas fa-check-circle text-success me-2"></i>Connected Accounts Summary
+                            </h5>
+                            <div class="row">
+                                @foreach (var account in currentUser.ConnectedAccounts.Where(a => a.IsConnected))
                                 {
-                                    <div class="alert alert-success py-2">
-                                        <small>
-                                            <strong>Earnings from @provider.Name:</strong><br>
-                                            £@userAccount.EarningsFromProvider.ToString("F2")
-                                        </small>
+                                    <div class="col-md-3 mb-2">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-link text-success me-2"></i>
+                                            <div>
+                                                <strong>@account.ProviderName</strong><br>
+                                                <small class="text-muted">£@account.EarningsFromProvider.ToString("F2") earned</small>
+                                            </div>
+                                        </div>
                                     </div>
-                                }
-                            </div>
-
-                            <div class="card-footer">
-                                @if (isConnected)
-                                {
-                                    <button class="btn btn-outline-danger w-100" @onclick="() => DisconnectProvider(provider.Id)">
-                                        Disconnect Account
-                                    </button>
-                                }
-                                else
-                                {
-                                    <button class="btn btn-primary w-100" @onclick="() => ConnectProvider(provider.Id)">
-                                        Connect Account
-                                    </button>
                                 }
                             </div>
                         </div>
                     </div>
-                }
+                </div>
             </div>
+        }
 
-            @if (!string.IsNullOrEmpty(statusMessage))
+        <!-- Provider Cards -->
+        <div class="row">
+            @foreach (var provider in providers)
             {
-                <div class="alert alert-info">
-                    @statusMessage
+                var userAccount = currentUser.ConnectedAccounts.FirstOrDefault(a => a.ProviderId == provider.Id);
+                var isConnected = userAccount?.IsConnected ?? false;
+
+                <div class="col-md-6 col-xl-4 mb-4">
+                    <div class="card h-100 provider-card @(isConnected ? "border-success" : "")" style="transition: transform 0.2s;">
+                        <div class="card-header @(isConnected ? "bg-success text-white" : "bg-light")">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">@provider.Name</h5>
+                                @if (isConnected)
+                                {
+                                    <span class="badge bg-light text-success">
+                                        <i class="fas fa-check me-1"></i>Connected
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Not Connected</span>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="card-body">
+                            <p class="card-text">@provider.Description</p>
+
+                            <div class="provider-details mb-3">
+                                <div class="row text-center">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Min Payout</small>
+                                        <strong>£@provider.MinPayout.ToString("F2")</strong>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Status</small>
+                                        <span class="badge @(provider.IsActive ? "bg-success" : "bg-secondary")">
+                                            @(provider.IsActive ? "Active" : "Inactive")
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(provider.PaymentMethods))
+                            {
+                                <div class="mb-3">
+                                    <small class="text-muted d-block mb-1">Payment Methods:</small>
+                                    @foreach (var method in provider.PaymentMethods.Split(','))
+                                    {
+                                        <span class="badge bg-outline-secondary me-1">@method.Trim()</span>
+                                    }
+                                </div>
+                            }
+
+                            @if (isConnected && userAccount != null)
+                            {
+                                <div class="alert alert-success py-2 mb-3">
+                                    <div class="row text-center">
+                                        <div class="col-6">
+                                            <strong>£@userAccount.EarningsFromProvider.ToString("F2")</strong>
+                                            <small class="d-block text-muted">Earned</small>
+                                        </div>
+                                        <div class="col-6">
+                                            <strong>@userAccount.SurveysCompleted</strong>
+                                            <small class="d-block text-muted">Surveys</small>
+                                        </div>
+                                    </div>
+                                    @if (userAccount.LastSyncAt.HasValue)
+                                    {
+                                        <hr class="my-2">
+                                        <small class="text-muted">
+                                            Last sync: @userAccount.LastSyncAt.Value.ToString("MMM dd, HH:mm")
+                                        </small>
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                        <div class="card-footer bg-transparent">
+                            @if (isConnected)
+                            {
+                                <button class="btn btn-outline-danger w-100" @onclick="() => DisconnectProvider(provider.Id)" disabled="@isProcessing">
+                                    @if (isProcessing)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                    }
+                                    <i class="fas fa-unlink me-1"></i>Disconnect Account
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-primary w-100" @onclick="() => ConnectProvider(provider.Id)" disabled="@isProcessing">
+                                    @if (isProcessing)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                    }
+                                    <i class="fas fa-link me-1"></i>Connect Account
+                                </button>
+                            }
+                        </div>
+                    </div>
                 </div>
             }
+        </div>
+
+        <!-- Status Messages -->
+        @if (!string.IsNullOrEmpty(statusMessage))
+        {
+            <div class="alert alert-info alert-dismissible fade show">
+                <i class="fas fa-info-circle me-2"></i>
+                @statusMessage
+                <button type="button" class="btn-close" @onclick="() => statusMessage = string.Empty"></button>
+            </div>
         }
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger alert-dismissible fade show">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                @errorMessage
+                <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+            </div>
+        }
+
+        <!-- Help Section -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-question-circle me-2"></i>Need Help Connecting?
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>For Pollfish:</h6>
+                                <ul class="list-unstyled">
+                                    <li>• Create a publisher account at pollfish.com</li>
+                                    <li>• Get your API key from the dashboard</li>
+                                    <li>• Click "Connect Account" above</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>For Other Providers:</h6>
+                                <ul class="list-unstyled">
+                                    <li>• Sign up at the provider's website</li>
+                                    <li>• Complete your profile thoroughly</li>
+                                    <li>• Use the connection link above</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     }
 </div>
 
+<style>
+    .provider-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+</style>
+
 @code {
+    private User? currentUser;
     private List<SurveyProvider> providers = new();
     private bool isLoading = true;
+    private bool isProcessing = false;
     private string statusMessage = string.Empty;
+    private string errorMessage = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
+        currentUser = await AuthService.GetCurrentUserAsync();
+        if (currentUser == null)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
         await LoadProviders();
     }
 
@@ -118,11 +270,17 @@
         isLoading = true;
         try
         {
-            providers = await ProviderService.GetProvidersAsync();
+            // Load providers from database
+            providers = await DbContext.SurveyProviders
+                .Where(p => p.IsActive)
+                .OrderBy(p => p.Name)
+                .ToListAsync();
         }
         catch (Exception ex)
         {
             providers = new List<SurveyProvider>();
+            errorMessage = "Failed to load providers. Please try again.";
+            Console.WriteLine($"Error loading providers: {ex.Message}");
         }
         finally
         {
@@ -130,75 +288,105 @@
         }
     }
 
+    private async Task RefreshProviders()
+    {
+        // Refresh user data to get latest account information
+        currentUser = await AuthService.GetCurrentUserAsync();
+        await LoadProviders();
+    }
+
     private async Task ConnectProvider(string providerId)
     {
-        statusMessage = "Connecting to provider...";
+        isProcessing = true;
+        statusMessage = string.Empty;
+        errorMessage = string.Empty;
 
         try
         {
-            var authUrl = await ProviderService.GetProviderAuthUrlAsync(providerId, Navigation.BaseUri + "auth/callback");
+            statusMessage = "Connecting to provider...";
+            StateHasChanged();
 
-            await Task.Delay(1000);
+            // Simulate connection process
+            await Task.Delay(1500);
 
-            var success = await UserService.ConnectProviderAsync(StateContainer.CurrentUser!.Id, providerId, "demo_token_" + Guid.NewGuid().ToString("N")[..8]);
+            var success = await UserService.ConnectProviderAsync(
+                currentUser!.Id,
+                providerId,
+                $"demo_token_{Guid.NewGuid().ToString("N")[..8]}",
+                $"ext_user_{currentUser.Id}_{providerId}"
+            );
 
             if (success)
             {
-                statusMessage = $"Successfully connected to {providers.First(p => p.Id == providerId).Name}!";
+                var providerName = providers.First(p => p.Id == providerId).Name;
+                statusMessage = $"Successfully connected to {providerName}!";
 
-                var updatedUser = UserService.GetUser(StateContainer.CurrentUser.Id);
-                if (updatedUser != null)
-                {
-                    StateContainer.SetUser(updatedUser);
-                }
+                // Refresh current user data
+                currentUser = await AuthService.GetCurrentUserAsync();
             }
             else
             {
-                statusMessage = "Failed to connect to provider. Please try again.";
+                errorMessage = "Failed to connect to provider. Please try again.";
             }
         }
         catch (Exception ex)
         {
-            statusMessage = "An error occurred while connecting to the provider.";
+            errorMessage = "An error occurred while connecting to the provider.";
+            Console.WriteLine($"Connection error: {ex.Message}");
         }
-
-        _ = Task.Delay(3000).ContinueWith(_ =>
+        finally
         {
-            statusMessage = string.Empty;
-            InvokeAsync(StateHasChanged);
-        });
+            isProcessing = false;
+
+            // Clear messages after delay
+            _ = Task.Delay(5000).ContinueWith(_ =>
+            {
+                statusMessage = string.Empty;
+                errorMessage = string.Empty;
+                InvokeAsync(StateHasChanged);
+            });
+        }
     }
 
     private async Task DisconnectProvider(string providerId)
     {
+        isProcessing = true;
+        statusMessage = string.Empty;
+        errorMessage = string.Empty;
+
         try
         {
-            var success = await UserService.DisconnectProviderAsync(StateContainer.CurrentUser!.Id, providerId);
+            var success = await UserService.DisconnectProviderAsync(currentUser!.Id, providerId);
 
             if (success)
             {
-                statusMessage = $"Successfully disconnected from {providers.First(p => p.Id == providerId).Name}.";
+                var providerName = providers.First(p => p.Id == providerId).Name;
+                statusMessage = $"Successfully disconnected from {providerName}.";
 
-                var updatedUser = UserService.GetUser(StateContainer.CurrentUser.Id);
-                if (updatedUser != null)
-                {
-                    StateContainer.SetUser(updatedUser);
-                }
+                // Refresh current user data
+                currentUser = await AuthService.GetCurrentUserAsync();
             }
             else
             {
-                statusMessage = "Failed to disconnect from provider.";
+                errorMessage = "Failed to disconnect from provider. Please try again.";
             }
         }
         catch (Exception ex)
         {
-            statusMessage = "An error occurred while disconnecting from the provider.";
+            errorMessage = "An error occurred while disconnecting from the provider.";
+            Console.WriteLine($"Disconnection error: {ex.Message}");
         }
-
-        _ = Task.Delay(3000).ContinueWith(_ =>
+        finally
         {
-            statusMessage = string.Empty;
-            InvokeAsync(StateHasChanged);
-        });
+            isProcessing = false;
+
+            // Clear messages after delay
+            _ = Task.Delay(5000).ContinueWith(_ =>
+            {
+                statusMessage = string.Empty;
+                errorMessage = string.Empty;
+                InvokeAsync(StateHasChanged);
+            });
+        }
     }
 }
