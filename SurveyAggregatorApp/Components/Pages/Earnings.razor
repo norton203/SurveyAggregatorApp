@@ -47,13 +47,12 @@
                             @if (monthlyGrowth >= 0)
                             {
                                 <i class="fas fa-arrow-up"></i>
-                                +@monthlyGrowth.ToString("F0")%
-                                    }
+                                @monthlyGrowth.ToString("F0")
+                            }
                             else
                             {
                                 <i class="fas fa-arrow-down"></i> @monthlyGrowth.ToString("F0")
-%
-                                    }
+                             }
                             this month
                         </small>
                     </div>

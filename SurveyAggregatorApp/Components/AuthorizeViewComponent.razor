@@ -1,0 +1,34 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using SurveyAggregatorApp.Services
+@inject AuthenticationService AuthService
+@inject NavigationManager Navigation
+
+@if (IsAuthenticated)
+{
+    @ChildContent
+}
+else
+{
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        Please <a href="/login">sign in</a> to access this page.
+    </div>
+}
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool IsAuthenticated { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var currentUser = await AuthService.GetCurrentUserAsync();
+        IsAuthenticated = currentUser != null;
+
+        if (!IsAuthenticated)
+        {
+            // Optionally redirect to login
+            // Navigation.NavigateTo("/login");
+        }
+    }
+}

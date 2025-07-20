@@ -1,6 +1,5 @@
-﻿@* 5. Create Components/Layout/NavMenu.razor *@
-@using SurveyAggregatorApp.Services
-@inject StateContainer StateContainer
+﻿@using SurveyAggregatorApp.Services
+@inject AuthenticationService AuthService
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
 
@@ -18,7 +17,7 @@
                     <a class="nav-link" href="/">🏠 Home</a>
                 </li>
 
-                @if (StateContainer.CurrentUser != null)
+                @if (currentUser != null)
                 {
                     <li class="nav-item">
                         <a class="nav-link" href="/surveys">📋 Available Surveys</a>
@@ -38,10 +37,10 @@
                 }
             </ul>
 
-            @if (StateContainer.CurrentUser != null)
+            @if (currentUser != null)
             {
                 <span class="navbar-text me-3">
-                    Welcome, @StateContainer.CurrentUser.Name | Balance: £@StateContainer.CurrentUser.TotalEarnings.ToString("F2")
+                    Welcome, @currentUser.Name | Balance: £@currentUser.TotalEarnings.ToString("F2")
                 </span>
                 <button class="btn btn-outline-light btn-sm" @onclick="Logout">Logout</button>
             }
@@ -54,19 +53,25 @@
 </nav>
 
 @code {
-    protected override void OnInitialized()
+    private Models.User? currentUser;
+
+    protected override async Task OnInitializedAsync()
     {
-        StateContainer.OnChange += StateHasChanged;
+        currentUser = await AuthService.GetCurrentUserAsync();
     }
 
-    private void Logout()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        StateContainer.ClearUser();
+        if (firstRender)
+        {
+            currentUser = await AuthService.GetCurrentUserAsync();
+            StateHasChanged();
+        }
+    }
+
+    private async Task Logout()
+    {
+        await AuthService.LogoutAsync();
         Navigation.NavigateTo("/");
-    }
-
-    public void Dispose()
-    {
-        StateContainer.OnChange -= StateHasChanged;
     }
 }
