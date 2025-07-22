@@ -1,6 +1,6 @@
-﻿// Models/ApplicationDbContext.cs
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 
 namespace SurveyAggregatorApp.Models
 {
@@ -122,6 +122,7 @@ namespace SurveyAggregatorApp.Models
                     ApiEndpoint = "https://api.pollfish.com/v2/",
                     AuthUrl = "https://www.pollfish.com/oauth/authorize",
                     MinPayout = 0.30m,
+                    PaymentMethods = "[\"PayPal\", \"Bank Transfer\", \"Gift Cards\"]",
                     IsActive = true
                 },
                 new SurveyProvider
@@ -133,28 +134,7 @@ namespace SurveyAggregatorApp.Models
                     ApiEndpoint = "https://api.dynata.com/v1/",
                     AuthUrl = "https://portal.dynata.com/oauth/authorize",
                     MinPayout = 0.50m,
-                    IsActive = true
-                },
-                new SurveyProvider
-                {
-                    Id = "lucid",
-                    Name = "Lucid (Cint)",
-                    LogoUrl = "/images/lucid-logo.png",
-                    Description = "Sample marketplace for market research",
-                    ApiEndpoint = "https://api.luc.id/v1/",
-                    AuthUrl = "https://suppliers.luc.id/oauth/authorize",
-                    MinPayout = 0.25m,
-                    IsActive = true
-                },
-                new SurveyProvider
-                {
-                    Id = "surveymonkey",
-                    Name = "SurveyMonkey Audience",
-                    LogoUrl = "/images/surveymonkey-logo.png",
-                    Description = "Survey creation and audience platform",
-                    ApiEndpoint = "https://api.surveymonkey.com/v3/",
-                    AuthUrl = "https://api.surveymonkey.com/oauth/authorize",
-                    MinPayout = 1.00m,
+                    PaymentMethods = "[\"PayPal\", \"Bank Transfer\"]",
                     IsActive = true
                 }
             );

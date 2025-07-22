@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using SurveyAggregatorApp.Models;
 using SurveyAggregatorApp.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication;
 using SurveyAggregatorApp.Components;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,25 +23,30 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.LogoutPath = "/logout";
         options.ExpireTimeSpan = TimeSpan.FromDays(30);
         options.SlidingExpiration = true;
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
     });
 
 builder.Services.AddAuthorization();
 
-// Add HTTP Client
+// Add HTTP Client and Memory Cache
 builder.Services.AddHttpClient();
-
-// Add Memory Cache
 builder.Services.AddMemoryCache();
 
-// Register application services
+// Add HttpContextAccessor BEFORE other services that depend on it
+builder.Services.AddHttpContextAccessor();
+
+// Register application services in correct order
+builder.Services.AddSingleton<SecurityService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<SurveyProviderService>();
-builder.Services.AddHttpContextAccessor(); // Add this line
-builder.Services.AddScoped<SurveyAggregatorApp.Services.AuthenticationService>();
-builder.Services.AddScoped<SecurityService>();
+builder.Services.AddScoped<AuthenticationService>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<LoggingService>();
 builder.Services.AddSingleton<StateContainer>();
+
+// Add configuration for EmailSettings
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
 // Add hosted services
 builder.Services.AddHostedService<BackgroundSurveyService>();
@@ -69,11 +73,22 @@ app.UseMiddleware<SecurityMiddleware>();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-// Ensure database is created
+// Ensure database is created and seed demo data
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    context.Database.EnsureCreated();
+    var userService = scope.ServiceProvider.GetRequiredService<UserService>();
+
+    try
+    {
+        context.Database.EnsureCreated();
+        await userService.EnsureDemoDataAsync();
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while seeding the database.");
+    }
 }
 
 app.Run();

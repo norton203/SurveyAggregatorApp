@@ -1,5 +1,6 @@
-﻿// Models/SurveyProvider.cs
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
 
 namespace SurveyAggregatorApp.Models
 {
@@ -17,11 +18,39 @@ namespace SurveyAggregatorApp.Models
         public string AuthUrl { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;
         public decimal MinPayout { get; set; }
-        public string PaymentMethods { get; set; } = string.Empty; // JSON array as string
+
+        // Store as JSON string in database
+        public string PaymentMethods { get; set; } = string.Empty;
+
+        // Helper property for easy access
+        [NotMapped]
+        public List<string> PaymentMethodsList
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(PaymentMethods))
+                    return new List<string>();
+
+                try
+                {
+                    return JsonSerializer.Deserialize<List<string>>(PaymentMethods) ?? new List<string>();
+                }
+                catch
+                {
+                    return new List<string>();
+                }
+            }
+            set
+            {
+                PaymentMethods = JsonSerializer.Serialize(value ?? new List<string>());
+            }
+        }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     }
 
+    // ExternalSurvey class - NOW PROPERLY NAMESPACED
     public class ExternalSurvey
     {
         public string Id { get; set; } = string.Empty;

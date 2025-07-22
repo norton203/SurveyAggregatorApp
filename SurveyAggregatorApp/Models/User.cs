@@ -1,5 +1,4 @@
-﻿// Models/User.cs - Fixed User model
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace SurveyAggregatorApp.Models
 {

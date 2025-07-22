@@ -22,52 +22,30 @@ namespace SurveyAggregatorApp.Services
         private List<SurveyProvider> InitializeProviders()
         {
             return new List<SurveyProvider>
-            {
-                new()
-                {
-                    Id = "pollfish",
-                    Name = "Pollfish",
-                    LogoUrl = "/images/pollfish-logo.png",
-                    Description = "Real-time survey platform with instant rewards",
-                    ApiEndpoint = "https://api.pollfish.com/v2/",
-                    AuthUrl = "https://www.pollfish.com/oauth/authorize",
-                    MinPayout = 0.30m,
-                    PaymentMethods = new() { "PayPal", "Bank Transfer", "Gift Cards" }
-                },
-                new()
-                {
-                    Id = "dynata",
-                    Name = "Dynata",
-                    LogoUrl = "/images/dynata-logo.png",
-                    Description = "Leading market research and data platform",
-                    ApiEndpoint = "https://api.dynata.com/v1/",
-                    AuthUrl = "https://portal.dynata.com/oauth/authorize",
-                    MinPayout = 0.50m,
-                    PaymentMethods = new() { "PayPal", "Bank Transfer" }
-                },
-                new()
-                {
-                    Id = "lucid",
-                    Name = "Lucid (Cint)",
-                    LogoUrl = "/images/lucid-logo.png",
-                    Description = "Sample marketplace for market research",
-                    ApiEndpoint = "https://api.luc.id/v1/",
-                    AuthUrl = "https://suppliers.luc.id/oauth/authorize",
-                    MinPayout = 0.25m,
-                    PaymentMethods = new() { "PayPal", "Wire Transfer" }
-                },
-                new()
-                {
-                    Id = "surveymonkey",
-                    Name = "SurveyMonkey Audience",
-                    LogoUrl = "/images/surveymonkey-logo.png",
-                    Description = "Survey creation and audience platform",
-                    ApiEndpoint = "https://api.surveymonkey.com/v3/",
-                    AuthUrl = "https://api.surveymonkey.com/oauth/authorize",
-                    MinPayout = 1.00m,
-                    PaymentMethods = new() { "PayPal", "Gift Cards" }
-                }
-            };
+    {
+        new()
+        {
+            Id = "pollfish",
+            Name = "Pollfish",
+            LogoUrl = "/images/pollfish-logo.png",
+            Description = "Real-time survey platform with instant rewards",
+            ApiEndpoint = "https://api.pollfish.com/v2/",
+            AuthUrl = "https://www.pollfish.com/oauth/authorize",
+            MinPayout = 0.30m,
+            PaymentMethodsList = new() { "PayPal", "Bank Transfer", "Gift Cards" }
+        },
+        new()
+        {
+            Id = "dynata",
+            Name = "Dynata",
+            LogoUrl = "/images/dynata-logo.png",
+            Description = "Leading market research and data platform",
+            ApiEndpoint = "https://api.dynata.com/v1/",
+            AuthUrl = "https://portal.dynata.com/oauth/authorize",
+            MinPayout = 0.50m,
+            PaymentMethodsList = new() { "PayPal", "Bank Transfer" }
+        }
+    };
         }
 
         public async Task<List<SurveyProvider>> GetProvidersAsync()

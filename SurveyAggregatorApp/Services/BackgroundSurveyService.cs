@@ -1,5 +1,6 @@
 ﻿// Services/BackgroundSurveyService.cs - Background service for survey updates
 using SurveyAggregatorApp.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace SurveyAggregatorApp.Services
 {
