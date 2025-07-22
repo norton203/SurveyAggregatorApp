@@ -5,7 +5,7 @@
 @inject AuthenticationService AuthService
 @inject UserService UserService
 @rendermode InteractiveServer
-@attribute [Authorize]
+
 
 <PageTitle>Earnings Dashboard - Survey Hub</PageTitle>
 
@@ -297,7 +297,7 @@
             earningsByProvider = await UserService.GetEarningsByProviderAsync(currentUser.Id);
 
             // Get recent transactions
-            recentTransactions = await UserService.GetUserTransactionsAsync(currentUser.Id, 10);
+            //recentTransactions = await UserService.GetUserTransactionsAsync(currentUser.Id, 10);
 
             // Calculate monthly earnings for chart
             monthlyEarnings = currentUser.CompletedSurveys

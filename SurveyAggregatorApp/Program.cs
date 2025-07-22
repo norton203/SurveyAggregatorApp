@@ -37,7 +37,8 @@ builder.Services.AddMemoryCache();
 // Register application services
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<SurveyProviderService>();
-builder.Services.AddScoped<AuthenticationService>();
+builder.Services.AddHttpContextAccessor(); // Add this line
+builder.Services.AddScoped<SurveyAggregatorApp.Services.AuthenticationService>();
 builder.Services.AddScoped<SecurityService>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<LoggingService>();

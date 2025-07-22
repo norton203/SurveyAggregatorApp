@@ -8,7 +8,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 @rendermode InteractiveServer
-@attribute [Authorize]
+
 
 <PageTitle>Available Surveys - Survey Hub</PageTitle>
 
@@ -94,7 +94,7 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <select class="form-select" @bind="selectedProvider" @onchange="FilterSurveys">
+                <select class="form-select" @bind="selectedProvider">
                     <option value="">All Providers</option>
                     @foreach (var provider in surveys.GroupBy(s => s.ProviderName).Select(g => g.Key))
                     {
@@ -103,7 +103,7 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <select class="form-select" @bind="sortBy" @onchange="SortSurveys">
+                <select class="form-select" @bind="sortBy">
                     <option value="reward">Highest Reward</option>
                     <option value="time">Shortest Time</option>
                     <option value="provider">Provider</option>
@@ -245,7 +245,7 @@
 
     private void FilterSurveys()
     {
-        filteredSurveys = surveys.AsQueryable();
+        //filteredSurveys = surveys.AsQueryable();
 
         // Apply search filter
         if (!string.IsNullOrWhiteSpace(searchTerm))
